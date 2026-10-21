@@ -1784,3 +1784,123 @@ textarea {
     scroll-behavior: auto !important;
   }
 }
+
+.sequence-field-label {
+  color: #6c7b70;
+  letter-spacing: 0.45px;
+  font-size: 10px;
+  font-weight: 600;
+}
+.sequence-control {
+  min-width: 0;
+}
+.sequence-toggle {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  border: 1px solid #dce6e0;
+  background: #f8faf8;
+  border-radius: 4px;
+  color: #627c6b;
+  font-size: 10px;
+  padding: 5px 7px;
+  text-align: left;
+}
+.sequence-toggle span {
+  font-size: 8px;
+  color: #83958a;
+}
+.sequence-toggle.enabled {
+  color: #166453;
+  background: #eaf4ee;
+  border-color: #b5d4c5;
+}
+.sequence-toggle.enabled span {
+  color: #166453;
+  font-weight: 600;
+}
+.sequence-toggle:hover:not(:disabled) {
+  border-color: #7fb39b;
+}
+.sequence-help {
+  font-size: 10px;
+  color: #6c8476;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.sequence-help p {
+  margin-top: 5px;
+}
+.sequence-help .sequence-warning {
+  color: #9a652f;
+}
+.suggestion-badge {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 1px 6px;
+  background: #edf3fb;
+  color: #426686;
+  border-radius: 3px;
+  font-size: 9px;
+}
+.pending-sequence {
+  width: 100%;
+  max-width: 620px;
+  text-align: left;
+  margin-top: 24px;
+  padding: 17px;
+  border: 1px solid #dde8e0;
+  background: #f7faf7;
+  border-radius: 7px;
+}
+.pending-sequence h3 {
+  font-size: 12px;
+  margin-bottom: 6px;
+  color: #496b55;
+}
+.pending-sequence > p {
+  font-size: 10px;
+  line-height: 1.7;
+  color: #728776;
+}
+.pending-sequence-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 14px;
+}
+.pending-value-label {
+  font-size: 9px;
+  font-weight: 600;
+  color: #788c7a;
+}
+.pending-value {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: #355846;
+  overflow-wrap: anywhere;
+  margin: 6px 0 10px;
+}
+@media (max-width: 540px) {
+  .sequence-field-label {
+    font-size: 9px;
+  }
+  .sequence-toggle {
+    font-size: 9px;
+    padding: 5px;
+    gap: 4px;
+  }
+  .sequence-toggle span {
+    font-size: 7px;
+  }
+  .sequence-help,
+  .suggestion-badge {
+    font-size: 9px;
+  }
+  .pending-sequence-grid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+}

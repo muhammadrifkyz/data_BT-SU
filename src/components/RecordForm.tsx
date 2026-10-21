@@ -21,12 +21,16 @@ import {
   type InventoryRow,
 } from "../domain";
 import { useEffect, useState, type KeyboardEvent } from "react";
+import { SequenceControl } from "./SequenceControl";
+import type { SequenceField, SequenceState } from "../sequencing";
 
 interface Props {
   draft: InventoryRow;
   dirty: boolean;
   busy: boolean;
   area: string;
+  sequences: SequenceState;
+  onToggleSequence: (field: SequenceField) => void;
   onAreaChange: (value: string) => void;
   onChange: (row: InventoryRow) => void;
   onSave: (andNext: boolean, area: number | null) => void;
@@ -39,6 +43,8 @@ export function RecordForm({
   dirty,
   busy,
   area,
+  sequences,
+  onToggleSequence,
   onAreaChange,
   onChange,
   onSave,
@@ -140,8 +146,10 @@ export function RecordForm({
                 pattern="[0-9]+"
               />
             </label>
-            <label className="field" htmlFor="su">
-              <span>NO.SU</span>
+            <div className="field sequence-field">
+              <label className="sequence-field-label" htmlFor="su">
+                NO.SU
+              </label>
               <div className="input-adornment">
                 <span>SU</span>
                 <input
@@ -153,9 +161,16 @@ export function RecordForm({
                   }
                   autoComplete="off"
                   placeholder="040"
+                  aria-describedby="sequence-su-help"
                 />
               </div>
-            </label>
+              <SequenceControl
+                field="su"
+                state={sequences.su}
+                disabled={busy}
+                onToggle={onToggleSequence}
+              />
+            </div>
             <label className="field" htmlFor="tahun">
               <span>TAHUN SU</span>
               <input
@@ -168,8 +183,10 @@ export function RecordForm({
                 maxLength={4}
               />
             </label>
-            <label className="field" htmlFor="nib">
-              <span>NIB</span>
+            <div className="field sequence-field">
+              <label className="sequence-field-label" htmlFor="nib">
+                NIB
+              </label>
               <input
                 id="nib"
                 name="nib"
@@ -177,8 +194,15 @@ export function RecordForm({
                 onChange={(event) => change("nib", event.target.value)}
                 placeholder="Sesuai dokumen"
                 autoComplete="off"
+                aria-describedby="sequence-nib-help"
               />
-            </label>
+              <SequenceControl
+                field="nib"
+                state={sequences.nib}
+                disabled={busy}
+                onToggle={onToggleSequence}
+              />
+            </div>
             <label className="field" htmlFor="luas">
               <span>LUAS</span>
               <div

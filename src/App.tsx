@@ -30,6 +30,16 @@ import { createInventoryService, type PageResult } from "./services/inventory";
 import { RecordForm } from "./components/RecordForm";
 import { InventoryTable, PAGE_SIZE } from "./components/InventoryTable";
 import { Dialog } from "./components/Dialog";
+import { SequenceControl } from "./components/SequenceControl";
+import {
+  applySequence,
+  emptySequences,
+  prepareSequence,
+  SEQUENCE_FIELDS,
+  toggleSequence,
+  type SequenceField,
+  type SequenceValues,
+} from "./sequencing";
 
 const service = createInventoryService();
 type EditorMode = "record" | "empty" | "duplicates" | "loading";
@@ -43,6 +53,11 @@ interface Confirmation {
 interface Notice {
   type: "success" | "error" | "info";
   text: string;
+}
+interface PendingSequence {
+  villageId: VillageId;
+  hak: string;
+  source: Pick<InventoryRow, SequenceField>;
 }
 
 export default function App() {
@@ -68,6 +83,12 @@ export default function App() {
   const [listLoading, setListLoading] = useState(true);
   const [listError, setListError] = useState("");
   const [refresh, setRefresh] = useState(0);
+  const [sequences, setSequences] = useState(emptySequences);
+  const [pendingSequence, setPendingSequence] =
+    useState<PendingSequence | null>(null);
+  const pendingPlan = pendingSequence
+    ? prepareSequence(sequences, pendingSequence.source)
+    : null;
   const dirty =
     !!draft &&
     !!original &&
@@ -81,13 +102,16 @@ export default function App() {
     confirmation?.resolve(value);
     setConfirmation(null);
   };
-  const openRow = useCallback((row: InventoryRow) => {
-    setDraft({ ...row });
-    setOriginal({ ...row });
-    setArea(areaInput(row.luas));
-    setMode("record");
-    setFormSession((count) => count + 1);
-  }, []);
+  const openRow = useCallback(
+    (row: InventoryRow, suggestions: SequenceValues = {}) => {
+      setDraft({ ...row, ...suggestions });
+      setOriginal({ ...row });
+      setArea(areaInput(row.luas));
+      setMode("record");
+      setFormSession((count) => count + 1);
+    },
+    [],
+  );
   const showMatches = useCallback(
     (rows: InventoryRow[], hak: string) => {
       setSearchHak(hak);
@@ -191,6 +215,51 @@ export default function App() {
     );
   };
 
+  const resetSequences = () => {
+    setSequences(emptySequences());
+    setPendingSequence(null);
+  };
+
+  const toggleFieldSequence = (field: SequenceField) => {
+    if (working || locked.current) return;
+    const source = draft ?? pendingSequence?.source;
+    if (!source) return;
+    setSequences((state) => ({
+      ...state,
+      [field]: toggleSequence(state[field], field, source[field]),
+    }));
+  };
+
+  const changeDraft = (updated: InventoryRow) => {
+    setSequences((state) => {
+      const next = { ...state };
+      for (const field of SEQUENCE_FIELDS) {
+        if (updated[field] !== draft?.[field]) {
+          next[field] = { ...state[field], suggested: undefined, message: "" };
+        }
+      }
+      return next;
+    });
+    setDraft(updated);
+  };
+
+  const openPendingRow = (row: InventoryRow) => {
+    if (
+      pendingSequence?.villageId === row.villageId &&
+      pendingSequence.hak === row.hak
+    ) {
+      const applied = applySequence(
+        prepareSequence(sequences, pendingSequence.source),
+        row,
+      );
+      setSequences(applied.state);
+      openRow(row, applied.values);
+      setPendingSequence(null);
+    } else {
+      openRow(row);
+    }
+  };
+
   const search = async () => {
     if (!(await canLeave())) return;
     let hak: string;
@@ -203,7 +272,9 @@ export default function App() {
     setFinding(true);
     setNotice(null);
     try {
-      showMatches(await service.findByHak(villageId, hak), hak);
+      const matches = await service.findByHak(villageId, hak);
+      resetSequences();
+      showMatches(matches, hak);
     } catch (error) {
       setNotice({ type: "error", text: (error as Error).message });
     } finally {
@@ -213,7 +284,16 @@ export default function App() {
 
   const add = async (hak = "") => {
     if (!(await canLeave())) return;
-    openRow(emptyRow(villageId, hak));
+    if (
+      hak &&
+      pendingSequence?.villageId === villageId &&
+      pendingSequence.hak === hak
+    ) {
+      openPendingRow(emptyRow(villageId, hak));
+    } else {
+      resetSequences();
+      openRow(emptyRow(villageId, hak));
+    }
     setNotice(null);
     window.setTimeout(() => document.getElementById("hak")?.focus(), 0);
   };
@@ -261,6 +341,10 @@ export default function App() {
       }
       saved = await service.save(input);
       openRow(saved);
+      setSequences((state) => ({
+        su: { ...state.su, suggested: undefined },
+        nib: { ...state.nib, suggested: undefined },
+      }));
       setRefresh((count) => count + 1);
       setNotice({
         type: "success",
@@ -269,7 +353,26 @@ export default function App() {
       if (andNext) {
         const following = nextHak(saved.hak);
         try {
-          showMatches(await service.findByHak(villageId, following), following);
+          const matches = await service.findByHak(villageId, following);
+          const plan = prepareSequence(sequences, saved);
+          if (matches.length === 1) {
+            const applied = applySequence(plan, matches[0]);
+            setSequences(applied.state);
+            openRow(matches[0], applied.values);
+            setSearchHak(following);
+            setPendingSequence(null);
+          } else {
+            setSequences(plan.state);
+            setPendingSequence(
+              SEQUENCE_FIELDS.some(
+                (field) =>
+                  sequences[field].enabled || plan.state[field].message,
+              )
+                ? { villageId, hak: following, source: saved }
+                : null,
+            );
+            showMatches(matches, following);
+          }
         } catch (error) {
           setNotice({
             type: "error",
@@ -299,6 +402,7 @@ export default function App() {
     setBusy(true);
     try {
       await service.delete(row.id, row.revision);
+      resetSequences();
       showMatches([], row.hak);
       setRefresh((count) => count + 1);
       setNotice({
@@ -385,6 +489,7 @@ export default function App() {
               onChange={async (event) => {
                 const next = event.target.value as VillageId;
                 if (await canLeave()) {
+                  resetSequences();
                   setVillageId(next);
                   setPage(1);
                   setQuery("");
@@ -476,7 +581,9 @@ export default function App() {
             busy={working}
             area={area}
             onAreaChange={setArea}
-            onChange={setDraft}
+            onChange={changeDraft}
+            sequences={sequences}
+            onToggleSequence={toggleFieldSequence}
             onSave={(andNext, value) => void save(andNext, value)}
             onDelete={() => void remove()}
             confirmCopy={() =>
@@ -517,7 +624,7 @@ export default function App() {
                     <button
                       className="duplicate-choice"
                       key={row.id}
-                      onClick={() => openRow(row)}
+                      onClick={() => openPendingRow(row)}
                       disabled={working}
                     >
                       <span className="duplicate-number">NO {row.no}</span>
@@ -554,6 +661,36 @@ export default function App() {
                 </button>
               </>
             )}
+            {pendingSequence && pendingPlan && (
+              <aside
+                className="pending-sequence"
+                aria-label="Saran urutan dokumen berikutnya"
+              >
+                <h3>Saran untuk nomor hak {pendingSequence.hak}</h3>
+                <p>
+                  Pilih tambah atau pilih baris untuk menyiapkan isian. Saran
+                  belum tersimpan dan hanya mengisi kolom yang kosong.
+                </p>
+                <div className="pending-sequence-grid">
+                  {SEQUENCE_FIELDS.map((field) => (
+                    <div key={field}>
+                      <span className="pending-value-label">
+                        {field === "su" ? "NO.SU" : "NIB"}
+                      </span>
+                      <strong className="pending-value">
+                        {pendingPlan.values[field] ?? "Isi manual"}
+                      </strong>
+                      <SequenceControl
+                        field={field}
+                        state={sequences[field]}
+                        disabled={working}
+                        onToggle={toggleFieldSequence}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </aside>
+            )}
           </section>
         )}
         <InventoryTable
@@ -570,6 +707,7 @@ export default function App() {
           onOpen={async (row) => {
             if (row.id === draft?.id && !dirty) return;
             if (await canLeave()) {
+              resetSequences();
               openRow(row);
               setSearchHak(row.hak);
               setNotice(null);

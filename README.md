@@ -69,6 +69,42 @@ tetap berupa teks. LUAS disimpan sebagai angka atau `null` untuk kosong; ketik
 `1250,5` tanpa titik ribuan, hasil tampil `1.250,5 m²`. Keterangan multi pilihan
 dan teks bebas digabung dengan `; ` menjadi satu nilai teks.
 
+## Urutan otomatis NIB dan nomor SU
+
+Di bawah input **NO.SU** dan **NIB** terdapat tombol **Urutkan otomatis** yang
+terpisah. Isi nilai awal lalu aktifkan salah satu atau kedua tombol. Tidak perlu
+menentukan jumlah dokumen atau nomor akhir.
+
+- Setelah **Simpan & Berikutnya** berhasil, nilai hasil simpan menjadi acuan `+1`
+  untuk satu formulir berikutnya. **Simpan** biasa tidak memajukan urutan.
+- SU mempertahankan nol awal: `SU 040 → SU 041`, `SU 40 → SU 41`. Lebar SU
+  dipertahankan sebagai lebar minimum; `SU 999 → SU 1000` saat melewati batas.
+- NIB hanya menaikkan bagian angka terakhir: `31.05.04.07.00009 →
+31.05.04.07.00010`. Angka tanpa titik, misalnya `00009`, juga didukung.
+  Format otomatis yang dikenali hanya digit atau kelompok digit dipisahkan
+  titik. Format lain tetap dapat diisi manual, tanpa menebak awalan.
+- NIB tidak diperlebar saat overflow. Misalnya `31.05.99999` menghentikan urutan
+  NIB dan meminta isian manual. Urutan SU dapat tetap berjalan.
+- Label **Saran — belum disimpan** menandai isian otomatis. Nilai baru disimpan
+  saat menekan Simpan. Saran dianggap perubahan belum disimpan dan dilindungi
+  oleh peringatan perpindahan. Mengoreksi lalu menyimpan memakai nilai koreksi
+  sebagai acuan berikutnya.
+- Jika kolom tujuan sudah berisi nilai, nilai tersebut ditampilkan tanpa diganti
+  dan urutan **kolom itu saja** dihentikan, bahkan bila nilainya sama dengan
+  saran. Aktifkan tombolnya lagi jika ingin melanjutkan dari nilai yang ada.
+- Jika nomor hak berikutnya belum tersedia, saran menunggu pilihan **Tambah**;
+  tidak ada baris yang dibuat otomatis. Jika duplikat, saran menunggu pemilihan
+  baris, kemudian hanya mengisi kolom kosong pada baris yang dipilih.
+- Klik tombol aktif untuk mematikan urutan kapan saja, termasuk saat menunggu
+  tambah/pemilihan baris. Mematikan urutan tidak menghapus isian yang sudah
+  disarankan pada formulir.
+- Pengaturan reset ketika berganti desa, melakukan pencarian nomor hak, membuka
+  baris lewat tabel, atau memulai tambah data di luar alur berikutnya. Pembatalan
+  perpindahan mempertahankan draf dan pengaturan. Pengaturan juga tidak disimpan
+  antar pemuatan halaman.
+- Penyimpanan gagal atau konfirmasi yang dibatalkan tidak memajukan urutan.
+  Fitur ini tidak menulis banyak baris sekaligus.
+
 ## Struktur kode dan kontrak data
 
 - `src/domain.ts`: 18 kolom berurutan, tipe data, format dan validasi. Fungsi
@@ -77,6 +113,8 @@ dan teks bebas digabung dengan `; ` menjadi satu nilai teks.
   mock berbasis browser. Ganti implementasi layanan ini saat integrasi tersedia.
 - `src/components/`: formulir, tabel berhalaman, dan dialog konfirmasi.
 - `src/App.tsx`: pemilihan desa, navigasi, status simpan, serta perlindungan draf.
+- `src/sequencing.ts`: perhitungan saran SU/NIB dan penghentian per kolom,
+  terpisah dari operasi penyimpanan.
 - `src/**/*.test.ts`: pengujian aturan data, CRUD, benturan revisi, kegagalan
   penyimpanan, pelestarian kolom, dan pagination dengan 30.000 baris di memori.
 - `e2e/`: pengujian browser terhadap alur pengguna, format, kesalahan penyimpanan,
